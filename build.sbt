@@ -1,3 +1,5 @@
+import scala.concurrent.duration._
+
 lazy val commonSettings = Seq(
   organization := "org.edoardo",
   version := "1.0.0",
@@ -5,7 +7,9 @@ lazy val commonSettings = Seq(
 )
 
 resolvers +=
-    "ImageJ Releases" at "http://maven.imagej.net/content/repositories/releases/"
+    ("ImageJ Releases" at "http://maven.imagej.net/content/repositories/releases/").withAllowInsecureProtocol(true)
+resolvers +=
+    ("Maven repo" at "http://maven.imagej.net/content/groups/public/").withAllowInsecureProtocol(true)
 
 lazy val root: Project = (project in file(".")).
   settings(commonSettings: _*).
@@ -13,7 +17,7 @@ lazy val root: Project = (project in file(".")).
     name := "RL Segmentation",
     scalaSource in Compile := baseDirectory.value / "src",
     maxErrors := 20,
-    pollInterval := 1000,
+    pollInterval := new FiniteDuration(1000.toLong, MILLISECONDS),
     scalacOptions += "-deprecation",
     fork := true,
     javaOptions += "-Xmx4G",

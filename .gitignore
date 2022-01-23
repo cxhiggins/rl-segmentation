@@ -2,10 +2,12 @@
 *.log
 
 # sbt specific
+.bsp
 .cache
 .history
 .lib/
 dist/*
+project/
 target/
 lib_managed/
 src_managed/
@@ -16,3 +18,6 @@ project/plugins/project/
 .scala_dependencies
 .worksheet
 .idea
+
+# jenv specific
+.java-version
