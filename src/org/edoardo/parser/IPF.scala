@@ -12,8 +12,7 @@ case class PixelProperties(baseValue: Int, gradientMagnitude: Int, greyValue: In
 /**
   * Describes a branch node of the IPF.
   */
-case class Node(centroid: (Float, Float, Float), maxGrey: Int, meanGrey: Float, minGrey: Int, xMin: Int, yMin: Int,
-				zMin: Int, xMax: Int, yMax: Int, zMax: Int, voxelCount: Int, children: List[Int], parent: Int)
+case class Node(centroid: (Float, Float, Float), maxGrey: Int, meanGrey: Float, minGrey: Int, voxelCount: Int, xMax: Int, xMin: Int, yMax: Int, yMin: Int, zMax: Int, zMin: Int, children: List[Int], parent: Int)
 
 /**
   * Describes the leaf layer of an IPF.
