@@ -38,13 +38,15 @@ object UCKneeSegmentation {
 		val imageInfos = List(
 			// Training data
 			// ImageInfo(id: Integer, fileName: String, layer: Integer, seed: (Int, Int, Int), windowing: (Int, Int))
-			ImageInfo(1, "/Users/cara/Desktop/oxford/3rd Year Project/datasource/Unicompartmental_knee/Test_XRay.png", 1, (200, 200, 0), (0, 400))
+			ImageInfo(1, "/Users/cara/Desktop/oxford/3rd Year Project/datasource/Unicompartmental_knee/116.jpg", 1, (200, 200, 0), (0, 400))
 		)
+
+        val layerIndex = 1
 
 		for (imageInfo <- imageInfos)
 			segmentUCKnee(imageInfo.fileName, imageInfo.fileName.substring(0, imageInfo.fileName.length - 4) + ".ipf",
 				"preTraining-" + imageInfo.id, imageInfo.seed, imageInfo.windowing,
-				None, imageInfo.layer, 0, saveAsRaw = false)
+				None, imageInfo.layer, 0, saveAsRaw = false, layerIndex)
 	}
 
 	/**
@@ -61,12 +63,12 @@ object UCKneeSegmentation {
 	  * @param saveAsRaw       whether to save the image as RAW (will be saved as TIFF otherwise)
 	  */
 	def segmentUCKnee(name: String, ipfName: String, resultName: String, seed: (Int, Int, Int), windowing: (Int, Int) = (0, 0),
-				gtName: Option[String] = None, stayInLayer: Integer = -1, numPracticeRuns: Int = 40, saveAsRaw: Boolean): Unit = {
+				gtName: Option[String] = None, stayInLayer: Integer = -1, numPracticeRuns: Int = 40, saveAsRaw: Boolean, layerIndex: Int): Unit = {
 		val img: WindowedImage = new WindowedImage(IJ.openImage(name), windowing);
 
 		new FileSaver(img.image).saveAsTiff(resultName + "-original.tiff")
 		val ipf: VolumeIPF = IPF.loadFromFile(ipfName)
-		val result: mutable.Set[Int] = selectKnee(img, ipf, None)
+		val result: mutable.Set[Int] = selectKnee(img, ipf, None, layerIndex)
 		// result.writeTo(resultName, saveAsRaw)
 	}
 
@@ -88,7 +90,7 @@ object UCKneeSegmentation {
         var windMaxX = ipf.width-distFromEdge;
         var windMaxY = ipf.height-distFromEdge;
 
-        println("htow: "+htow)
+        // println("htow: "+htow)
 
         // Determine region of focus based on image size
         if (0.75 < htow && htow < 1.5) { // Roughly square
@@ -105,7 +107,6 @@ object UCKneeSegmentation {
             windMaxX = ipf.width * 3 / 4;
         }
 
-        println("windMin: ("+windMinX+", "+windMinY+") -> windMax: ("+windMaxX+", "+windMaxY+")")
         return (windMinX, windMinY, windMaxX, windMaxY)
     }
 	
@@ -115,11 +116,9 @@ object UCKneeSegmentation {
 	  * @param img         the image to analyse
 	  * @param ipf         the IPF for the image
 	  * @param gt          the gold standard to compare to, if applicable
-	  * @return the result of segmenting the UC knee
+	  * @return the result of segmenting the UC knee prosthesis
 	  */
-	def selectKnee(img: WindowedImage, ipf: VolumeIPF, gt: Option[SegmentationResult]): mutable.Set[Int] = {
-        println("Identifying unicompartmental knee...")
-        val layerIndex = 1
+	def selectKnee(img: WindowedImage, ipf: VolumeIPF, gt: Option[SegmentationResult], layerIndex: Int): mutable.Set[Int] = {
         require(0 <= layerIndex && layerIndex <= ipf.branchLayers.length, "layerIndex out of bounds.")
          
         val layer = ipf.branchLayers(ipf.branchLayers.length - layerIndex);
@@ -132,19 +131,15 @@ object UCKneeSegmentation {
             windMaxY = roi._4
         }
 
-        println("windMin: ("+windMinX+", "+windMinY+") -> windMax: ("+windMaxX+", "+windMaxY+")")
+        // println("windMin: ("+windMinX+", "+windMinY+") -> windMax: ("+windMaxX+", "+windMaxY+")")
         
         var (nodes, maxMeanGrey): (mutable.ListBuffer[Int], Float) = max_mean_grey_with_filter(
             layer, windMinX, windMinY, windMaxX, windMaxY
         );
-        println("nodes: "+nodes)
         
         val threshold = maxMeanGrey - 20;
-
         val connectedComps: mutable.ListBuffer[Component] = connected_components(nodes, ipf, layer, threshold)
-        println(connectedComps)
         connectedComps.sortBy(comp => comp.voxelCount)    // Sort connected components by voxel count
-        println(connectedComps)
 
         // Initialize region to store unicompartmental knee node indices
         // PartitionForestSelection_Ptr filledRegion(new PartitionForestSelectionT(volume_ipf()));
@@ -156,8 +151,8 @@ object UCKneeSegmentation {
             uckneeNodeIndices ++= comp.nodes
         }
 
-        println("Selected top 2 connected components")
-        println(uckneeNodeIndices)
+        // println("Selected top 2 connected components")
+        println("UC knee: "+uckneeNodeIndices)
 
         return uckneeNodeIndices
     }
@@ -165,27 +160,17 @@ object UCKneeSegmentation {
     def max_mean_grey_with_filter(layer: BranchLayer, windMinX: Int, windMinY: Int, windMaxX: Int, windMaxY: Int): (mutable.ListBuffer[Int], Float) = {  
         var maxMeanGrey = 0.toFloat;
         val nodes = new mutable.ListBuffer[Int]();
-
-        // println("layer.nodes: "+layer.nodes)
         
         for ((nodeI, node) <- layer.nodes) {
-            // println("Considering node "+nodeI)
             if (
                 node.voxelCount <= 15000 && node.voxelCount >= 10 && // Node must contain between 100 and 15,000 voxels
                 windMinX < node.xMin && node.xMax < windMaxX && windMinY < node.yMin && node.yMax < windMaxY // Region lies within region of interest (not touching edges)
             ) { 
-                // println("Node contains appropriate characteristics")
                 nodes += nodeI;  // Add node index to results list
                 if (node.meanGrey > maxMeanGrey)
                     maxMeanGrey = node.meanGrey;
-            } // else if (node.voxelCount <= 15000 && node.voxelCount >= 10) {
-            //     println("Voxel count = "+node.voxelCount+" but Min: ("+node.xMin+", "+node.yMin+") -> Max: ("+node.xMax+", "+node.yMax+")")
-            // } else {
-            //     println("Min: ("+node.xMin+", "+node.yMin+") -> Max: ("+node.xMax+", "+node.yMax+") but voxel count = "+node.voxelCount)
-            // }
+            }
         }
-
-        println("Max Mean Grey Value = "+maxMeanGrey)
 
         return (nodes, maxMeanGrey);
     }
@@ -194,7 +179,6 @@ object UCKneeSegmentation {
         var connectedComps = mutable.ListBuffer[Component]()
 
         for (nodeI <- nodes) {
-            // println("nodeI: "+nodeI)
             val node = layer.nodes(nodeI)
             if (node.meanGrey > threshold) { // Check that mean grey value is above the specified threshold 
                 var nodeAddedTo = -1
@@ -206,19 +190,19 @@ object UCKneeSegmentation {
                 var compI = 0
                 while (compI < connectedComps.length) {
                     val component = connectedComps(compI)
-                    println(connectedComps.length + " connected components; " + component.nodes.size + " nodes in this")
+                    // println(connectedComps.length + " connected components; " + component.nodes.size + " nodes in this")
 
                     // TODO: use are_connected function
                     // Check if the node is adjacent to the component
                     if ((adjNodeSet intersect component.nodes).nonEmpty) {
-                        println("Connected to existing component")
+                        // println("Connected to existing component")
                         if (nodeAddedTo == -1) {
                             // If new node is adjacent to the component and hasn't been added to another component, 
                             // add it to this component & update voxel count
                             connectedComps(compI).nodes += nodeI;
                             connectedComps(compI).voxelCount += node.voxelCount;
                             nodeAddedTo = compI;
-                            println("Node added to existing component.")
+                            // println("Node added to existing component.")
                         } else {
                             // Node has already been added to another component, but is also adjacent to this
                             // component, so the components should be merged
@@ -229,7 +213,7 @@ object UCKneeSegmentation {
                             // Preserve compI after erasing component
                             connectedComps.remove(compI) // Remove old component, after merging
                             compI -= 1
-                            println("Merging components.")
+                            // println("Merging components.")
                         }
                     }
                     compI += 1
@@ -238,7 +222,7 @@ object UCKneeSegmentation {
                 if (nodeAddedTo == -1) { // If node not adjacent to any connected component, add singleton to connected components
                     val newComp = new Component(mutable.Set(nodeI), node.voxelCount)
                     connectedComps += newComp
-                    println("Node added as a singleton component.")
+                    // println("Node added as a singleton component.")
                 }
             }
         } // End node iteration
