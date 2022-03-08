@@ -19,7 +19,8 @@ object RLTibiaSegmentation {
 	val opener = new Opener()
 	val regionInfoCache: mutable.Map[Int, RegionInfo] = mutable.Map.empty
 	var epsilonReciprocal = 10
-	val dataLocation = "/Users/cara/Desktop/oxford/3rd Year Project/datasource/Unicompartmental_knee/"
+	val dataLocation = "/fs/medimaging/datasource/Unicompartmental_knee/UnicompartmentalKneeSetStephenMellon/"
+	val localDataLocation = "/Users/cara/Desktop/oxford/3rd Year Project/datasource/Unicompartmental_knee/"
 	
 	/**
 	  * Main method to run our segmentation algorithm.
@@ -44,14 +45,14 @@ object RLTibiaSegmentation {
 			ImageInfo(173, dataLocation+"173ap.jpg", -1, (165, 450, 0), (127, 256)),
 			ImageInfo(226, dataLocation+"226ap_1_1.jpg", -1, (222, 305, 0), (127, 256)),
 			ImageInfo(239, dataLocation+"239ap.jpg", -1, (440, 642, 0), (127, 256)),
-			ImageInfo(244, dataLocation+"244ap.jpg", -1, (240, 305, 0), (127, 256))
+			ImageInfo(244, dataLocation+"244ap.jpg", -1, (240, 305, 0), (127, 256)),
 			
 			// Evaluation data
-			// ImageInfo(245, dataLocation+"245ap.jpg", 1, (263, 315, 0), (127, 256)),
-			// ImageInfo(250, dataLocation+"250ap.jpg", 1, (510, 580, 0), (127, 256)),
-			// ImageInfo(251, dataLocation+"251ap.jpg", 1, (234, 286, 0), (127, 256)),
-			// ImageInfo(253, dataLocation+"253ap.jpg", 1, (250, 330, 0), (127, 256)),
-			// ImageInfo(260, dataLocation+"260ap.jpg", 1, (223, 295, 0), (170, 90))
+			// ImageInfo(245, dataLocation+"245ap.jpg", -1, (263, 315, 0), (127, 256)),
+			// ImageInfo(250, dataLocation+"250ap.jpg", -1, (510, 580, 0), (130, 120))
+			// ImageInfo(251, dataLocation+"251ap.jpg", -1, (234, 286, 0), (127, 160))
+			// ImageInfo(253, dataLocation+"253ap.jpg", -1, (250, 330, 0), (127, 256)),
+			ImageInfo(260, dataLocation+"260ap.jpg", -1, (223, 295, 0), (170, 110))
 		)
 
 		val resultsFolder = "experimentOneResults/"
@@ -60,13 +61,13 @@ object RLTibiaSegmentation {
 		for (imageInfo <- imageInfos)
 			doImage(imageInfo.fileName, imageInfo.fileName.dropRight(3) + "ipf",
 				resultsFolder+"preTraining-" + imageInfo.id + ".tiff", imageInfo.seed, imageInfo.windowing,
-				Some(imageInfo.fileName.dropRight(4) + "-tibia.png"), imageInfo.layer, 0, saveAsRaw = false)
+				Some(imageInfo.fileName.dropRight(4) + "-tibiaGT.png"), imageInfo.layer, 0, saveAsRaw = false)
 		
 		println("-- Training --")
 		for (imageInfo <- imageInfos.take(5))
 			doImage(imageInfo.fileName, imageInfo.fileName.dropRight(3) + "ipf",
 				resultsFolder+"training-" + imageInfo.id + ".tiff", imageInfo.seed, imageInfo.windowing,
-				Some(imageInfo.fileName.dropRight(4) + "-tibia.png"), imageInfo.layer, 40, saveAsRaw = false)
+				Some(imageInfo.fileName.dropRight(4) + "-tibiaGT.png"), imageInfo.layer, 40, saveAsRaw = false)
 		
 		printPolicy()
 		
@@ -74,7 +75,7 @@ object RLTibiaSegmentation {
 		for (imageInfo <- imageInfos)
 			doImage(imageInfo.fileName, imageInfo.fileName.dropRight(3) + "ipf",
 				resultsFolder+"postTraining-" + imageInfo.id + ".tiff", imageInfo.seed, imageInfo.windowing,
-				Some(imageInfo.fileName.dropRight(4) + "-tibia.png"), imageInfo.layer, 0, saveAsRaw = false)
+				Some(imageInfo.fileName.dropRight(4) + "-tibiaGT.png"), imageInfo.layer, 0, saveAsRaw = false)
 	}
 	
 	/**

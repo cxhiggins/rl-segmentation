@@ -25,3 +25,9 @@ project/plugins/project/
 # VSCode specific
 .metals
 .vscode
+
+# experiment results
+experimentOneResults/
+
+# mac specific
+.DS_Store
